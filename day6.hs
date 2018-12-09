@@ -38,3 +38,16 @@ part1 input =
     Just coordinate <- [closest (x, y) coordinates]
     guard $ coordinate `notElem` infinites
     return coordinate
+
+part2 :: String -> Int
+part2 input =
+  let coordinates = map parse $ lines $ input
+      left = minimum $ map fst $ coordinates
+      right = maximum $ map fst $ coordinates
+      top = minimum $ map snd $ coordinates
+      bottom = maximum $ map snd $ coordinates
+  in length $ do
+    x <- [left .. right]
+    y <- [top .. bottom]
+    guard $ sum (map (distance (x, y)) coordinates) < 10000
+    return (x, y)
