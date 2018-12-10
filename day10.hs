@@ -37,3 +37,9 @@ part1 = mapM_ (\s -> putStrLn s >> getLine) . map draw . filter sane . iterate m
   where sane points =
           let (left, right, top, bottom) = borders $ map fst points
           in right - left + bottom - top < 100
+
+part2 :: String -> IO ()
+part2 = mapM_ (\(t, s) -> print t >> putStrLn (draw s) >> getLine) . filter sane . zip [0..] . iterate move . map parse . lines
+  where sane (_, points) =
+          let (left, right, top, bottom) = borders $ map fst points
+          in right - left + bottom - top < 100
