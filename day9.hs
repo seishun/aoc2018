@@ -1,17 +1,24 @@
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map (Map, (!))
+import qualified Data.Map.Strict as Map
 
-type State = ([Int], Int, Map Int Int)
+type Circle = Map Int (Int, Int)
+type State = (Circle, Int, Map Int Int)
 
 turn :: State -> (Int, Int) -> State
 turn (circle, current, scores) (player, number)
   | number `mod` 23 == 0 =
-      let removed = (current - 7 + length circle) `mod` length circle
-          score = number + circle !! removed
-      in (take removed circle ++ drop (removed + 1) circle, removed, Map.insertWith (+) player score scores)
+      let removed = iterate (fst . (circle !)) current !! 7
+          (Just (left, right), circle') = Map.updateLookupWithKey (const (const Nothing)) removed circle
+          circle'' = Map.insertWithKey updateRight left (0, right) $ Map.insertWithKey updateLeft right (left, 0) circle'
+          score = number + removed
+      in (circle'', right, Map.insertWith (+) player score scores)
   | otherwise =
-      let current' = (current + 2) `mod` length circle
-      in (take current' circle ++ [number] ++ drop current' circle, current', scores)
+      let left = snd $ circle ! current
+          (Just (_, right), circle') = Map.insertLookupWithKey updateRight left (0, number) circle
+          circle'' = Map.insert number (left, right) $ Map.insertWithKey updateLeft right (number, 0) circle'
+      in (circle'', number, scores)
+  where updateLeft _ (left, _) (_, right) = (left, right)
+        updateRight _ (_, right) (left, _) = (left, right)
 
 parse :: [String] -> (Int, Int)
 parse [players, "players;", "last", "marble", "is", "worth", marbles, "points"] = (read players, read marbles)
@@ -19,5 +26,11 @@ parse [players, "players;", "last", "marble", "is", "worth", marbles, "points"] 
 part1 :: String -> Int
 part1 input =
   let (players, marbles) = parse $ words input
-      (_, _, scores) = foldl turn ([0], 0, Map.empty) $ zip (cycle [1..players]) [1..marbles]
+      (_, _, scores) = foldl turn (Map.fromList [(0, (0, 0))], 0, Map.empty) $ zip (cycle [1..players]) [1..marbles]
+  in maximum $ Map.elems scores
+
+part2 :: String -> Int
+part2 input =
+  let (players, marbles) = parse $ words input
+      (_, _, scores) = foldl turn (Map.fromList [(0, (0, 0))], 0, Map.empty) $ zip (cycle [1..players]) [1..marbles * 100]
   in maximum $ Map.elems scores
