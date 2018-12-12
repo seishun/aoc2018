@@ -22,8 +22,21 @@ next :: Notes -> (String, Int) -> (String, Int)
 next notes (state@('.':'.':'.':xs), offset) = (next' notes state, offset + 2)
 next notes (state, offset) = next notes (('.':state), offset - 1)
 
+nextN :: Notes -> (String, Int) -> Int -> (String, Int)
+nextN notes (state, offset) n =
+  let (state', offset') = next notes (state, offset)
+  in if state == state'
+  then (state, offset + (offset' - offset) * n)
+  else nextN notes (state', offset') (n - 1)
+
 part1 :: String -> Int
 part1 input =
   let (initial, notes) = parse $ lines input
       (final, offset) = iterate (next notes) (initial, 0) !! 20
+  in sum $ map fst $ filter ((== '#') . snd) $ zip [offset..] final
+
+part2 :: String -> Int
+part2 input =
+  let (initial, notes) = parse $ lines input
+      (final, offset) = nextN notes (initial, 0) 50000000000
   in sum $ map fst $ filter ((== '#') . snd) $ zip [offset..] final
