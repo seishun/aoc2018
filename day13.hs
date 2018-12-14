@@ -34,27 +34,44 @@ turn ((y :+ x), turns) '\\' = ((  x  :+   y ), turns)
 turn (c, turns) '|' = (c, turns)
 turn (c, turns) '-' = (c, turns)
 
-tick' :: [String] -> State -> [(Location, Cart)] -> Either State Location
+tick' :: [String] -> State -> [(Location, Cart)] -> (State, Maybe Location)
 tick' tracks state (((y, x), cart@((vy :+ vx), turns)):xs) =
-  let (y', x') = (y + round vy, x + round vx)
+  if Map.notMember (y, x) state
+  then tick' tracks state xs
+  else let (y', x') = (y + round vy, x + round vx)
   in if Map.member (y', x') state
-  then Right (y', x')
+  then
+    let state' = Map.delete (y', x') $ Map.delete (y, x) state
+    in (fst $ tick' tracks state' xs, Just (y', x'))
   else
     let cart' = turn cart $ tracks !! y' !! x'
         state' = Map.insert (y', x') cart' $ Map.delete (y, x) state
     in tick' tracks state' xs
-tick' _ state [] = Left state
+tick' _ state [] = (state, Nothing)
 
-tick :: [String] -> State -> Either State Location
+tick :: [String] -> State -> (State, Maybe Location)
 tick tracks state = tick' tracks state $ Map.toList state
 
 firstCollision :: [String] -> State -> Location
 firstCollision tracks state = case tick tracks state of
-  Left state' -> firstCollision tracks state'
-  Right location -> location
+  (state', Nothing) -> firstCollision tracks state'
+  (_, Just location) -> location
+
+lastCart :: [String] -> State -> Location
+lastCart tracks state =
+  let (state', _) = tick tracks state
+  in if Map.size state == 1
+  then head $ Map.keys state
+  else lastCart tracks state'
 
 part1 :: String -> (Int, Int)
 part1 input =
   let (tracks, state) = parse input
       (y, x) = firstCollision tracks state
+  in (x, y)
+
+part2 :: String -> (Int, Int)
+part2 input =
+  let (tracks, state) = parse input
+      (y, x) = lastCart tracks state
   in (x, y)
