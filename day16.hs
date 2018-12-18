@@ -1,7 +1,12 @@
 import Data.Bits
+import Data.List
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Tuple
 
 type Registers = [Int]
 type Op = Registers -> Int -> Int -> Int -> Registers
+type Instruction = (Int, Int, Int, Int)
 
 get :: Int -> Registers -> Int
 get 0 [value, _, _, _] = value
@@ -69,12 +74,35 @@ eqrr = op get get (\x y -> fromEnum $ x == y)
 opcodes :: [Op]
 opcodes = [addr, addi, mulr, muli, banr, bani, borr, bori, setr, seti, gtir, gtri, gtrr, eqir, eqri, eqrr]
 
-parse :: [String] -> [(Registers, (Int, Int, Int, Int), Registers)]
-parse ("" : "" : xs) = []
-parse (('B':'e':'f':'o':'r':'e':':':' ':before) : instruction : ('A':'f':'t':'e':'r':':':' ':' ':after) : "" : xs) =
+execute :: [Op] -> Registers -> Instruction -> Registers
+execute ops registers (op, a, b, c) = (ops !! op) registers a b c
+
+parseInstruction :: String -> Instruction
+parseInstruction instruction =
   let [op, a, b, c] = map read $ words $ instruction
-  in (read before, (op, a, b, c), read after) : parse xs
+  in (op, a, b, c)
+
+parse :: [String] -> ([(Registers, Instruction, Registers)], [Instruction])
+parse ("" : "" : xs) = ([], map parseInstruction xs)
+parse (('B':'e':'f':'o':'r':'e':':':' ':before) : instruction : ('A':'f':'t':'e':'r':':':' ':' ':after) : "" : xs) =
+  let (samples, program) = parse xs
+  in ((read before, parseInstruction instruction, read after) : samples, program)
+
+ops :: [(Registers, Instruction, Registers)] -> Map Int Int -> [Op]
+ops samples mapping =
+  if Map.size mapping == length opcodes
+  then map (\(_, i) -> opcodes !! i) $ sort $ map swap $ Map.toList mapping
+  else ops samples $ foldl matching mapping samples
+  where matching mapping (before, (op, a, b, c), after) =
+          case filter (\(i, op) -> op before a b c == after && i `Map.notMember` mapping) $ zip [0..] opcodes of
+            [(i, _)] -> Map.insert i op mapping
+            _ -> mapping
 
 part1 :: String -> Int
-part1 = length . filter (>= 3) . map matching . parse . lines
+part1 = length . filter (>= 3) . map matching . fst . parse . lines
   where matching (before, (_, a, b, c), after) = length $ filter (\op -> op before a b c == after) opcodes
+
+part2 :: String -> Int
+part2 input =
+  let (samples, program) = parse $ lines input
+  in get 0 $ foldl (execute $ ops samples Map.empty) [0,0,0,0] program
