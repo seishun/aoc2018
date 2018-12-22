@@ -53,7 +53,7 @@ side direction clay settled visited (y, x)
     let (waterDown, settledDown, overflowDown) = down clay settled visited (y + 1, x)
         (waterSide, settledSide, overflowSide) = side direction clay (Set.union waterDown settled) (Set.union waterDown visited) (y, x + direction)
     in if overflowDown
-    then (Set.insert (y, x) $ Set.union waterDown waterSide, Set.insert (y, x) $ Set.union settledDown settledSide, overflowDown && overflowSide)
+    then (Set.insert (y, x) $ Set.union waterDown waterSide, Set.union settledDown settledSide, overflowDown && overflowSide)
     else (Set.insert (y, x) waterDown, settledDown, False)
   | otherwise =
     let (waterSide, settledSide, overflowSide) = side direction clay settled visited (y, x + direction)
@@ -65,3 +65,10 @@ part1 input =
       top = fst $ minimum clay
       (visited, _, _) = down clay Set.empty Set.empty (0, 500)
   in Set.size $ Set.filter ((>= top) . fst) $ visited
+
+part2 :: String -> Int
+part2 input =
+  let clay = Set.unions $ map parse $ lines input
+      top = fst $ minimum clay
+      (_, settled, _) = down clay Set.empty Set.empty (0, 500)
+  in Set.size settled
