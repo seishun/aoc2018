@@ -1,4 +1,5 @@
 import Control.Monad
+import Data.List
 import Data.Map (Map, (!?))
 import qualified Data.Map as Map
 
@@ -41,9 +42,22 @@ next state = Map.mapWithKey magic state
             Lumber ->
               if length trees >= 1 && length lumber >= 1 then Lumber else Open
 
-part1 :: String -> Int
-part1 input =
-  let state = (iterate next $ parse input) !! 10
-      wood = Map.filter (== Tree) state
+value :: State -> Int
+value state =
+  let wood = Map.filter (== Tree) state
       lumber = Map.filter (== Lumber) state
   in Map.size wood * Map.size lumber
+
+valueN :: [State] -> Int -> State -> Int
+valueN _ 0 state = value state
+valueN seen n state =
+  let state' = next state
+  in case elemIndex state' seen of
+    Just i -> value $ seen !! (i + 1 - n `mod` (i + 1))
+    Nothing -> valueN (take 30 $ state':seen) (n-1) state'
+
+part1 :: String -> Int
+part1 input = valueN [] 10 $ parse input
+
+part2 :: String -> Int
+part2 input = valueN [] 1000000000 $ parse input
