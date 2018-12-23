@@ -41,7 +41,21 @@ bfs visited unvisited adjacencies =
   then 0
   else 1 + bfs visited' unvisited' adjacencies
 
+bfs' :: Int -> Set Location -> Set Location -> Adjacencies -> Int
+bfs' doors visited unvisited adjacencies =
+  let unvisited' = Set.filter (`Set.notMember` visited) $ Set.fromList $ concatMap (adjacencies !) unvisited
+      visited' = Set.union visited unvisited
+      rooms = if doors >= 1000 then Set.size unvisited else 0
+  in if Set.null unvisited'
+  then rooms
+  else rooms + bfs' (doors + 1) visited' unvisited' adjacencies
+
 part1 :: String -> Int
 part1 input =
   let (_, adjacencies', _, _) = adjacencies input (0,0)
   in bfs Set.empty (Set.singleton (0,0)) $ Map.fromListWith (++) $ Set.toList adjacencies'
+
+part2 :: String -> Int
+part2 input =
+  let (_, adjacencies', _, _) = adjacencies input (0,0)
+  in bfs' 0 Set.empty (Set.singleton (0,0)) $ Map.fromListWith (++) $ Set.toList adjacencies'
