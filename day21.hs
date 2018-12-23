@@ -1,4 +1,6 @@
 import Data.Bits
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 type Registers = [Int]
 type Op = Registers -> Int -> Int -> Int -> Registers
@@ -49,14 +51,29 @@ parseInstruction instruction =
 parse :: [String] -> (Int, [Instruction])
 parse (('#':'i':'p':' ':ip_):xs) = (read ip_, map parseInstruction xs)
 
+next :: Int -> Int -> Int
+next value seed =
+  let quotients = map (.&. 255) $ takeWhile (> 0) $ iterate (`div` 256) $ value .|. 65536
+  in foldl proc seed quotients
+  where proc cur = (.&. 16777215) . (* 65899) . (.&. 16777215) . (+ cur)
+
+highest :: Set Int -> Int -> Int -> Int
+highest seen value seed =
+  let value' = next value seed
+  in if value' `elem` seen
+  then value
+  else highest (Set.insert value' seen) value' seed
+
 run :: Registers -> (Int, [Instruction]) -> Int
 run registers (ip, instructions) =
   let ip' = get ip registers
       (op, a, b, c) = instructions !! ip'
       registers' = op registers a b c
-  in if ip' == 28
-  then get a registers
+  in if ip' == 7 then a
   else run (set ip (get ip registers' + 1) registers') (ip, instructions)
 
 part1 :: String -> Int
-part1 = run [0,0,0,0,0,0] . parse . lines
+part1 = next 0 . run [0,0,0,0,0,0] . parse . lines
+
+part2 :: String -> Int
+part2 = highest Set.empty 0 . run [0,0,0,0,0,0] . parse . lines
