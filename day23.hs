@@ -12,13 +12,22 @@ parse ('p':'o':'s':'=':'<':x_) =
       r = read r_
   in ((x, y, z), r)
 
-inRange :: Position -> Nanobot -> Bool
-inRange (x, y, z) ((x', y', z'), radius) =
+toRange :: Position -> Nanobot -> Int
+toRange (x, y, z) ((x', y', z'), radius) =
   let distance = abs (x - x') + abs (y - y') + abs (z - z')
-  in radius >= distance
+  in distance - radius
+
+cluster :: [Nanobot] -> [Nanobot]
+cluster (bot@(pos, r) : xs) = bot : cluster (filter ((<= r) . toRange pos) xs)
+cluster [] = []
 
 part1 :: String -> Int
 part1 input =
   let nanobots = map parse $ lines input
       strongest = maximumBy (comparing snd) nanobots
-  in length $ filter ((`inRange` strongest) . fst) nanobots
+  in length $ filter ((<= 0) . (`toRange` strongest) . fst) nanobots
+
+part2 :: String -> Int
+part2 input =
+  let nanobots = sortOn (negate . snd) $ map parse $ lines input
+  in maximum $ map (toRange (0,0,0)) $ cluster nanobots
