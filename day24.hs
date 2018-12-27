@@ -1,6 +1,7 @@
 import Control.Monad
 import Control.Monad.State
 import Data.Foldable
+import Data.Function
 import Data.List
 import Data.Maybe
 import Data.Ord
@@ -18,7 +19,7 @@ data Group = Group
   , initiative   :: Int
   , weaknesses   :: [String]
   , immunities   :: [String]
-  }
+  } deriving (Eq)
 
 parseAttack :: [String] -> Attack
 parseAttack ["an","attack","that","does",damage_,t,"damage","at","initiative",initiative_] =
@@ -87,20 +88,33 @@ select groups (attacker, (faction, group)) selected =
       let target = snd $ maximum enemies
       in (Just (group, (attacker, target)), target : selected)
 
-fight :: [(Faction, Group)] -> Maybe [(Faction, Group)]
+fight :: [(Faction, Group)] -> [(Faction, Group)]
 fight groups =
-  let factions = nub $ map fst groups
-  in if length factions == 1
-  then Nothing
-  else let attackers = sortOn (\(_, (_, g)) -> Down (power g, initiative g)) $ zip [0..] groups
-           selections = catMaybes $ fst $ runState (mapM (state . select groups) attackers) []
-           attacks = map snd $ sortOn (\(g, _) -> Down (initiative g)) selections
-  in Just $ filter (\(f, g) -> units g > 0) $ toList $ foldl attack (Seq.fromList groups) attacks
+  let attackers = sortOn (\(_, (_, g)) -> Down (power g, initiative g)) $ zip [0..] groups
+      selections = catMaybes $ fst $ runState (mapM (state . select groups) attackers) []
+      attacks = map snd $ sortOn (\(g, _) -> Down (initiative g)) selections
+  in filter (\(f, g) -> units g > 0) $ toList $ foldl attack (Seq.fromList groups) attacks
 
-combat :: [(Faction, Group)] -> [(Faction, Group)]
-combat groups = case fight groups of
-  Just groups' -> combat groups'
-  Nothing -> groups
+combat :: [(Faction, Group)] -> Maybe (Faction, Int)
+combat groups =
+  let groups' = fight groups
+  in if groups' == groups
+  then case groupBy ((==) `on` fst) groups of
+    [((faction,_):_)] -> Just (faction, sum $ map (units . snd) groups)
+    _ -> Nothing
+  else combat groups'
+
+boost :: [(Faction, Group)] -> Int -> [(Faction, Group)]
+boost groups increase = do
+  (faction, group) <- groups
+  return $ case faction of
+    ImmuneSystem -> (faction, group { attackDamage = attackDamage group + increase })
+    Infection -> (faction, group)
 
 part1 :: String -> Int
-part1 = sum . map (units . snd) . combat . parse . lines
+part1 = snd . fromJust . combat . parse . lines
+
+part2 :: String -> Int
+part2 input =
+  let groups = parse $ lines input
+  in snd $ head $ filter ((== ImmuneSystem) . fst) $ catMaybes $ map (combat . boost groups) [0..]
